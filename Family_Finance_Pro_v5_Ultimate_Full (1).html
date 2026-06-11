@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Family Finance Pro v5 Ultimate Full</title>
+<style>
+body{font-family:Segoe UI,Arial;margin:0;background:linear-gradient(135deg,#eef6ff,#f8f2ff);color:#222}
+header{background:#fff;padding:20px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.container{max-width:1400px;margin:auto;padding:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+.card{background:#fff;border-radius:18px;padding:16px;box-shadow:0 4px 14px rgba(0,0,0,.08);margin-bottom:15px}
+input,select,button{width:100%;padding:10px;margin:5px 0;border-radius:10px;border:1px solid #ddd}
+button{background:#5b6df8;color:#fff;border:none}
+table{width:100%;border-collapse:collapse} th,td{padding:8px;border-bottom:1px solid #eee}
+.progress{height:14px;background:#eee;border-radius:99px;overflow:hidden}.bar{height:100%;background:#22c55e}
+.stat{font-size:28px;font-weight:bold}
+</style>
+</head>
+<body>
+<header><h1>🏡 Family Finance Pro v5 Ultimate Full</h1></header>
+<div class="container">
+
+<div class="grid">
+<div class="card"><div>Saldo</div><div id="saldo" class="stat">Rp0</div></div>
+<div class="card"><div>Pemasukan</div><div id="masuk" class="stat">Rp0</div></div>
+<div class="card"><div>Pengeluaran</div><div id="keluar" class="stat">Rp0</div></div>
+<div class="card"><div>Total Transaksi</div><div id="jumlah" class="stat">0</div></div>
+</div>
+
+<div class="card">
+<h3>Tambah Transaksi</h3>
+<input type="date" id="tgl">
+<select id="jenis"><option>Pemasukan</option><option>Pengeluaran</option></select>
+<select id="akun"><option>Tunai</option><option>Bank</option><option>DANA</option><option>OVO</option><option>GoPay</option></select>
+<input id="ket" placeholder="Keterangan">
+<input id="nominal" type="number" placeholder="Nominal">
+<button onclick="addTx()">Simpan</button>
+</div>
+
+<div class="card">
+<h3>🎯 Target Impian Otomatis</h3>
+<input id="gNama" placeholder="Nama Target">
+<input id="gTarget" type="number" placeholder="Nominal Target">
+<button onclick="addGoal()">Tambah Target</button>
+<div id="goals"></div>
+</div>
+
+<div class="card">
+<h3>Budget Bulanan</h3>
+<input id="budget" type="number" placeholder="Budget Bulanan">
+<button onclick="saveBudget()">Simpan Budget</button>
+<div id="budgetInfo"></div>
+</div>
+
+<div class="card">
+<h3>Backup & Restore</h3>
+<button onclick="backup()">Backup JSON</button>
+<input type="file" id="restoreFile">
+<button onclick="restoreData()">Restore</button>
+</div>
+
+<div class="card">
+<h3>Riwayat Transaksi</h3>
+<table>
+<thead><tr><th>Tanggal</th><th>Jenis</th><th>Akun</th><th>Keterangan</th><th>Nominal</th><th>Aksi</th></tr></thead>
+<tbody id="tb"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+let tx=JSON.parse(localStorage.getItem('ff_full_tx')||'[]');
+let goals=JSON.parse(localStorage.getItem('ff_full_goals')||'[]');
+
+function save(){
+localStorage.setItem('ff_full_tx',JSON.stringify(tx));
+localStorage.setItem('ff_full_goals',JSON.stringify(goals));
+}
+function rp(n){return 'Rp'+Number(n).toLocaleString('id-ID');}
+
+function addTx(){
+tx.push({id:Date.now(),tgl:tgl.value,jenis:jenis.value,akun:akun.value,ket:ket.value,nominal:+nominal.value});
+save();render();
+}
+function delTx(id){tx=tx.filter(x=>x.id!==id);save();render();}
+
+function saldoNow(){
+let m=0,k=0;
+tx.forEach(t=> t.jenis==='Pemasukan'?m+=t.nominal:k+=t.nominal);
+return m-k;
+}
+
+function addGoal(){
+goals.push({id:Date.now(),nama:gNama.value,target:+gTarget.value});
+save();renderGoals();
+}
+function delGoal(id){
+goals=goals.filter(g=>g.id!==id);
+save();renderGoals();
+}
+
+function renderGoals(){
+let saldo=saldoNow();
+let h='';
+goals.forEach(g=>{
+ let p=Math.min(100,(saldo/g.target)*100||0);
+ h+=`<div class="card"><b>${g.nama}</b><br>
+ Target: ${rp(g.target)}<br>
+ Dana Otomatis dari Saldo: ${rp(saldo)}
+ <div class="progress"><div class="bar" style="width:${p}%"></div></div>
+ ${p.toFixed(1)}%
+ ${p>=100?'<br><button onclick="delGoal('+g.id+')">✓ Target Tercapai</button>':''}
+ </div>`;
+});
+document.getElementById('goals').innerHTML=h;
+}
+
+function saveBudget(){
+localStorage.setItem('ff_budget',budget.value);
+render();
+}
+
+function backup(){
+let data={tx,goals,budget:localStorage.getItem('ff_budget')};
+let blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+let a=document.createElement('a');
+a.href=URL.createObjectURL(blob);
+a.download='family-finance-backup.json';
+a.click();
+}
+
+function restoreData(){
+let f=document.getElementById('restoreFile').files[0];
+if(!f)return;
+let r=new FileReader();
+r.onload=e=>{
+ let d=JSON.parse(e.target.result);
+ tx=d.tx||[]; goals=d.goals||[];
+ localStorage.setItem('ff_budget',d.budget||0);
+ save(); render(); renderGoals();
+};
+r.readAsText(f);
+}
+
+function render(){
+let m=0,k=0;
+tb.innerHTML='';
+tx.forEach(t=>{
+ if(t.jenis==='Pemasukan')m+=t.nominal; else k+=t.nominal;
+ tb.innerHTML += `<tr><td>${t.tgl}</td><td>${t.jenis}</td><td>${t.akun}</td><td>${t.ket}</td><td>${rp(t.nominal)}</td><td><button onclick="delTx(${t.id})">Hapus</button></td></tr>`;
+});
+saldo.textContent=rp(m-k);
+masuk.textContent=rp(m);
+keluar.textContent=rp(k);
+jumlah.textContent=tx.length;
+budgetInfo.textContent='Budget: '+rp(localStorage.getItem('ff_budget')||0);
+renderGoals();
+}
+render();
+</script>
+</body>
+</html>
